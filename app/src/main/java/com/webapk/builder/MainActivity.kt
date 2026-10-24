@@ -164,7 +164,20 @@ fun BuildScreen(vm: MainViewModel, openLog: () -> Unit) {
                 pickSource.launch(arrayOf("*/*"))
             }
             SmallButton("Выбрать папку сайта", Modifier.fillMaxWidth()) { pickFolder.launch(null) }
-            Text("Поддерживаются HTML, ZIP без index.html и целые папки сайта.", fontSize = 12.sp, color = TextLo)
+            Text("Поддерживаются HTML, ZIP без index.html, PDF и целые папки сайта.", fontSize = 12.sp, color = TextLo)
+            OutlinedTextField(
+                value = ui.sourceUrl, onValueChange = vm::setUrl, singleLine = true,
+                label = { Text("Или адрес сайта (URL)") }, placeholder = { Text("https://example.com") },
+                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+            )
+            SmallButton("Использовать URL", Modifier.fillMaxWidth()) { vm.useUrl() }
+            OutlinedTextField(
+                value = ui.pastedHtml, onValueChange = vm::setPastedHtml,
+                label = { Text("Или вставьте HTML-код") }, placeholder = { Text("<!doctype html>…") },
+                modifier = Modifier.fillMaxWidth(), minLines = 3, maxLines = 8,
+                shape = RoundedCornerShape(14.dp),
+            )
+            SmallButton("Использовать HTML-код", Modifier.fillMaxWidth()) { vm.usePastedHtml() }
         }
 
         StepCard("3", "Логотип (по желанию)") {
