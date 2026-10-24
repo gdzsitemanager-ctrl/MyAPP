@@ -41,6 +41,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
+      - name: Bundle local 3D runtime for offline APK
+        run: |
+          curl -fsSL https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js -o game/three.min.js
+          cp game/three.min.js gameapp/src/main/assets/www/three.min.js
+          cp game/index.html gameapp/src/main/assets/www/index.html
       - name: Build
         run: gradle :app:assembleDebug :gameapp:assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
