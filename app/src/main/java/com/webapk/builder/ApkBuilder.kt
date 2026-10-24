@@ -11,6 +11,7 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import com.android.apksig.ApkSigner
 import java.io.BufferedInputStream
 import java.math.BigInteger
@@ -86,6 +87,13 @@ class ApkBuilder(private val ctx: Context) {
     // ---------- 1. Импорт HTML / ZIP ----------
 
     private fun importSource(uri: Uri, www: File) {
+        val tree = runCatching { DocumentFile.fromTreeUri(ctx, uri) }.getOrNull()
+        if (tree != null) {
+            AppLog.i("Источник: папка сайта")
+            copyDocumentTree(tree, www, "")
+            if (www.walkTopDown().none { it.isFile }) error("Выбранная папка пуста")
+            return
+        }
         val input = ctx.contentResolver.openInputStream(uri) ?: error("Не удалось открыть файл")
         BufferedInputStream(input).use { bin ->
             bin.mark(8)
@@ -104,6 +112,24 @@ class ApkBuilder(private val ctx: Context) {
         }
     }
 
+    private fun copyDocumentTree(node: DocumentFile, destination: File, relative: String) {
+        for (child in node.listFiles()) {
+            val name = child.name?.takeIf { it.isNotBlank() } ?: continue
+            if (name == "." || name == ".." || name.contains("/") || name.contains("\\\\")) continue
+            val rel = if (relative.isEmpty()) name else "$relative/$name"
+            val target = File(destination, rel)
+            if (child.isDirectory) {
+                target.mkdirs()
+                copyDocumentTree(child, destination, rel)
+            } else if (child.isFile) {
+                target.parentFile?.mkdirs()
+                val currentSize = destination.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+                if (child.length() > MAX_TOTAL || currentSize + child.length() > MAX_TOTAL) error("Размер папки превышает 300 МБ")
+                val input = ctx.contentResolver.openInputStream(child.uri) ?: continue
+                input.use { source -> target.outputStream().use { out -> source.copyTo(out) } }
+            }
+        }
+    }
     private fun extractZip(input: InputStream, www: File) {
         var total = 0L
         var count = 0
