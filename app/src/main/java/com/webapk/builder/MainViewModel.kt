@@ -19,6 +19,8 @@ data class UiState(
     val appName: String = "",
     val sourceUri: Uri? = null,
     val sourceName: String? = null,
+    val sourceUrl: String = "",
+    val pastedHtml: String = "",
     val logoUri: Uri? = null,
     val building: Boolean = false,
     val progress: Float = 0f,
@@ -44,6 +46,34 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun setUrl(value: String) { _ui.update { it.copy(sourceUrl = value, error = null) } }
+
+    fun setPastedHtml(value: String) { _ui.update { it.copy(pastedHtml = value, error = null) } }
+
+    fun useUrl() {
+        val raw = _ui.value.sourceUrl.trim()
+        val url = if (raw.startsWith("https://") || raw.startsWith("http://")) raw else "https://$raw"
+        val parsed = runCatching { Uri.parse(url) }.getOrNull()
+        if (parsed == null || parsed.host.isNullOrBlank()) {
+            _ui.update { it.copy(error = "Введите корректный адрес сайта, например https://example.com") }
+            return
+        }
+        val quoted = org.json.JSONObject.quote(url)
+        val html = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Открытие сайта</title></head><body style=\"font:16px sans-serif;padding:24px\">Открываем <a href=\"$url\">$url</a><script>location.replace($quoted)</script></body></html>"
+        val file = File(getApplication<Application>().cacheDir, "source-url.html")
+        file.writeText(html, Charsets.UTF_8)
+        setSource(Uri.fromFile(file))
+        _ui.update { it.copy(sourceName = "Сайт: $url") }
+    }
+
+    fun usePastedHtml() {
+        val html = _ui.value.pastedHtml.trim()
+        if (html.isBlank()) { _ui.update { it.copy(error = "Вставьте HTML-код перед продолжением") }; return }
+        val file = File(getApplication<Application>().cacheDir, "pasted-site.html")
+        file.writeText(html, Charsets.UTF_8)
+        setSource(Uri.fromFile(file))
+        _ui.update { it.copy(sourceName = "HTML-код") }
+    }
     fun setLogo(uri: Uri?) {
         if (uri != null) AppLog.i("Выбран логотип: ${displayName(getApplication(), uri)}")
         _ui.update { it.copy(logoUri = uri) }
