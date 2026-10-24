@@ -32,30 +32,14 @@ jobs:
                       image.save(path, format="PNG", optimize=True)
               except Exception as error:
                   print(f"Replacing unreadable PNG resource: {path} ({error})")
-                  # A malformed image must not prevent the rest of the Android project from building.
                   Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(path, format="PNG")
           PY
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
-      - name: Prepare web assets
-        run: |
-          curl -fsSL https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js -o game/three.min.js
-          cp game/three.min.js gameapp/src/main/assets/www/three.min.js
-          cp game/index.html gameapp/src/main/assets/www/index.html
-          mkdir -p messengerapp/src/main/assets/www
-          cp messenger/index.html messengerapp/src/main/assets/www/index.html
-      - name: Build APKs
-        run: gradle :app:assembleDebug :gameapp:assembleDebug :messengerapp:assembleDebug --no-daemon --stacktrace
+      - name: Build WebApk Builder
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: WebApkBuilder
           path: app/build/outputs/apk/debug/app-debug.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: DroneWarfareFrontline-APK
-          path: gameapp/build/outputs/apk/debug/gameapp-debug.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: FRONTLINE-Messenger-APK
-          path: messengerapp/build/outputs/apk/debug/messengerapp-debug.apk
