@@ -42,8 +42,13 @@ jobs:
         with:
           gradle-version: 8.9
       - name: Build
-        run: gradle :app:assembleDebug --no-daemon --stacktrace
+        run: gradle :app:assembleDebug :gameapp:assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: WebApkBuilder
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DroneWarfareFrontline-APK
+          path: gameapp/build/outputs/apk/debug/gameapp-debug.apk
