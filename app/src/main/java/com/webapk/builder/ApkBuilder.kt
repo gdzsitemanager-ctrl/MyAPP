@@ -105,9 +105,21 @@ class ApkBuilder(private val ctx: Context) {
                 AppLog.i("Источник: ZIP-архив")
                 extractZip(bin, www)
             } else {
-                AppLog.i("Источник: одиночный HTML")
-                AppLog.w("Одиночный HTML: внешние css/js/картинки не будут включены. Для сайта из нескольких файлов используйте ZIP.")
-                File(www, "index.html").outputStream().use { bin.copyTo(it) }
+                val sourceName = runCatching { displayName(ctx, uri) }.getOrDefault("source.html")
+                if (sourceName.substringAfterLast('.', "").equals("pdf", true)) {
+                    AppLog.i("Источник: PDF-документ")
+                    val pdf = File(www, sourceName.replace(Regex("[^\\p{L}\\p{N}._-]"), "_").ifBlank { "document.pdf" })
+                    pdf.outputStream().use { bin.copyTo(it) }
+                    val safe = pdf.name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    File(www, "index.html").writeText(
+                        "<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>PDF документ</title><style>body{font:16px system-ui;padding:24px;background:#10131c;color:#f5f6fa}a{color:#8ba7ff}</style></head><body><h1>PDF документ</h1><p>Откройте или сохраните документ:</p><p><a href=\"$safe\">$safe</a></p></body></html>",
+                        Charsets.UTF_8
+                    )
+                } else {
+                    AppLog.i("Источник: одиночный HTML")
+                    AppLog.w("Одиночный HTML: внешние css/js/картинки не будут включены. Для сайта из нескольких файлов используйте ZIP.")
+                    File(www, "index.html").outputStream().use { bin.copyTo(it) }
+                }
             }
         }
     }
