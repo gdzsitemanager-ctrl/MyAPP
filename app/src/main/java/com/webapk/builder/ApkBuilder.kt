@@ -13,6 +13,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import com.android.apksig.ApkSigner
 import java.io.BufferedInputStream
+import java.math.BigInteger
 import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -22,10 +23,17 @@ import java.io.FilterOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.KeyFactory
+import java.security.KeyPairGenerator
+import java.security.SecureRandom
 import java.security.MessageDigest
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Date
+import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -263,10 +271,7 @@ class ApkBuilder(private val ctx: Context) {
     // ---------- 4. Подпись ----------
 
     private fun sign(input: File, output: File) {
-        val keyBytes = ctx.assets.open("signing/key.pk8").use { it.readBytes() }
-        val certBytes = ctx.assets.open("signing/cert.der").use { it.readBytes() }
-        val key = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(keyBytes))
-        val cert = CertificateFactory.getInstance("X.509").generateCertificate(ByteArrayInputStream(certBytes)) as X509Certificate
+        val (key, cert) = loadOrCreateSigningMaterial()
         val cfg = ApkSigner.SignerConfig.Builder("WebApk", key, listOf(cert)).build()
         output.delete()
         ApkSigner.Builder(listOf(cfg))
@@ -278,6 +283,51 @@ class ApkBuilder(private val ctx: Context) {
             .setV3SigningEnabled(false)
             .build()
             .sign()
+    }
+
+    /**
+     * Prefer an explicitly provisioned signing key, but never make APK creation depend
+     * on private signing files being committed into the public repository. If they are
+     * absent, create a self-signed key once and keep it in this app's private storage.
+     */
+    private fun loadOrCreateSigningMaterial(): Pair<java.security.PrivateKey, X509Certificate> {
+        val assetKey = runCatching { ctx.assets.open("signing/key.pk8").use { it.readBytes() } }.getOrNull()
+        val assetCert = runCatching { ctx.assets.open("signing/cert.der").use { it.readBytes() } }.getOrNull()
+        if (assetKey != null && assetCert != null) {
+            val key = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(assetKey))
+            val cert = CertificateFactory.getInstance("X.509")
+                .generateCertificate(ByteArrayInputStream(assetCert)) as X509Certificate
+            return key to cert
+        }
+
+        val dir = File(ctx.filesDir, "signing").also { it.mkdirs() }
+        val keyFile = File(dir, "key.pk8")
+        val certFile = File(dir, "cert.der")
+        if (keyFile.isFile && certFile.isFile) {
+            val key = KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(keyFile.readBytes()))
+            val cert = CertificateFactory.getInstance("X.509")
+                .generateCertificate(ByteArrayInputStream(certFile.readBytes())) as X509Certificate
+            return key to cert
+        }
+
+        AppLog.w("Ключ подписи не найден в assets: создаю локальный ключ приложения")
+        val generator = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }
+        val pair = generator.generateKeyPair()
+        val now = System.currentTimeMillis()
+        val name = X500Name("CN=WebApk Builder")
+        val builder = JcaX509v3CertificateBuilder(
+            name,
+            BigInteger(160, SecureRandom()).abs().let { if (it == BigInteger.ZERO) BigInteger.ONE else it },
+            Date(now - 24L * 60 * 60 * 1000),
+            Date(now + 10L * 365 * 24 * 60 * 60 * 1000),
+            name,
+            pair.public
+        )
+        val signer = JcaContentSignerBuilder("SHA256withRSA").build(pair.private)
+        val cert = JcaX509CertificateConverter().getCertificate(builder.build(signer))
+        keyFile.writeBytes(pair.private.encoded)
+        certFile.writeBytes(cert.encoded)
+        return pair.private to cert
     }
 
     private fun sha1Hex(s: String): String =
