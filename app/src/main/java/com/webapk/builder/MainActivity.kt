@@ -141,7 +141,7 @@ fun BuildScreen(vm: MainViewModel, openLog: () -> Unit) {
             Spacer(Modifier.width(14.dp))
             Column {
                 Text("WebApk Builder", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = TextHi)
-                Text("HTML / ZIP → APK за один тап", fontSize = 14.sp, color = TextLo)
+                Text("HTML / ZIP / папка → APK", fontSize = 14.sp, color = TextLo)
             }
         }
 
@@ -158,11 +158,11 @@ fun BuildScreen(vm: MainViewModel, openLog: () -> Unit) {
             )
         }
 
-        StepCard("2", "Сайт: HTML или ZIP") {
+        StepCard("2", "Источник сайта: HTML, ZIP или папка") {
             FileRow(ui.sourceName ?: "Файл не выбран", if (ui.sourceName == null) "Выбрать" else "Заменить") {
                 pickSource.launch(arrayOf("*/*"))
             }
-            Text("В ZIP должен быть index.html (можно в подпапке)", fontSize = 12.sp, color = TextLo)
+            Text("ZIP без HTML тоже откроется: создастся страница со списком файлов.", fontSize = 12.sp, color = TextLo)
         }
 
         StepCard("3", "Логотип (по желанию)") {
