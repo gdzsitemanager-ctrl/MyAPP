@@ -32,7 +32,7 @@ android {
     androidResources { noCompress += listOf("apk") }
     sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/template_assets"))
     packaging {
-        resources { excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "/META-INF/DEPENDENCIES", "/META-INF/*.kotlin_module") }
+        resources { excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "/META-INF/DEPENDENCIES", "/META-INF/*.kotlin_module", "/META-INF/versions/9/OSGI-INF/MANIFEST.MF") }
     }
     lint { abortOnError = false }
 }
