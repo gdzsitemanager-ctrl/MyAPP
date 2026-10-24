@@ -166,7 +166,23 @@ class ApkBuilder(private val ctx: Context) {
             normalizeIndex(www)
             return
         }
-        error("В архиве не найден index.html. Переименуйте главный файл в index.html и повторите.")
+        // ZIP без HTML: создаём стартовую страницу со ссылками на файлы архива.
+        val visibleFiles = files.filter { it.isFile }
+            .sortedBy { it.relativeTo(www).invariantSeparatorsPath.lowercase() }
+        if (visibleFiles.isEmpty()) error("В архиве нет файлов")
+        val links = visibleFiles.joinToString("\n") { file ->
+            val rel = file.relativeTo(www).invariantSeparatorsPath
+            val href = rel.split('/').joinToString("/") { part ->
+                java.net.URLEncoder.encode(part, "UTF-8").replace("+", "%20")
+            }
+            val label = rel.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            "<li><a href=\"$href\">$label</a></li>"
+        }
+        File(www, "index.html").writeText(
+            """<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Файлы приложения</title><style>body{font:16px system-ui;margin:0;padding:24px;background:#10131c;color:#f5f6fa}h1{font-size:24px}li{margin:12px 0}a{color:#8ba7ff;overflow-wrap:anywhere}</style></head><body><h1>Файлы приложения</h1><p>В архиве не найден HTML-сайт. Выберите файл:</p><ul>$links</ul></body></html>""",
+            Charsets.UTF_8
+        )
+        AppLog.w("HTML не найден: создана стартовая страница со ссылками на ${visibleFiles.size} файлов")
     }
 
     // ---------- 2. Иконка ----------
