@@ -129,6 +129,7 @@ fun BuildScreen(vm: MainViewModel, openLog: () -> Unit) {
     val ui by vm.ui.collectAsState()
     val ctx = LocalContext.current
     val pickSource = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u -> if (u != null) vm.setSource(u) }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { u -> if (u != null) vm.setSource(u) }
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u -> if (u != null) vm.setLogo(u) }
     val saveAs = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/vnd.android.package-archive")) { u -> if (u != null) vm.saveTo(u) }
 
@@ -159,10 +160,11 @@ fun BuildScreen(vm: MainViewModel, openLog: () -> Unit) {
         }
 
         StepCard("2", "Источник сайта: HTML, ZIP или папка") {
-            FileRow(ui.sourceName ?: "Файл не выбран", if (ui.sourceName == null) "Выбрать" else "Заменить") {
+            FileRow(ui.sourceName ?: "Файл не выбран", if (ui.sourceName == null) "Выбрать файл / ZIP" else "Заменить") {
                 pickSource.launch(arrayOf("*/*"))
             }
-            Text("ZIP без HTML тоже откроется: создастся страница со списком файлов.", fontSize = 12.sp, color = TextLo)
+            SmallButton("Выбрать папку сайта", Modifier.fillMaxWidth()) { pickFolder.launch(null) }
+            Text("Поддерживаются HTML, ZIP без index.html и целые папки сайта.", fontSize = 12.sp, color = TextLo)
         }
 
         StepCard("3", "Логотип (по желанию)") {
