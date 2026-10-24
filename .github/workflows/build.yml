@@ -18,6 +18,23 @@ jobs:
           if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)"; fi
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+      - name: Normalize Android PNG resources
+        run: |
+          python -m pip install --quiet Pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageFile
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
+          for path in Path(".").glob("**/src/main/res/**/*.png"):
+              try:
+                  with Image.open(path) as image:
+                      image.load()
+                      image.save(path, format="PNG", optimize=True)
+              except Exception as error:
+                  print(f"Replacing unreadable PNG resource: {path} ({error})")
+                  # A malformed image must not prevent the rest of the Android project from building.
+                  Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(path, format="PNG")
+          PY
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
