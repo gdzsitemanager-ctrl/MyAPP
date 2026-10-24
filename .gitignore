@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+
+# Keep signing keys and keystores out of version control
+*.pk8
+*.jks
+*.keystore
+app/src/main/assets/signing/
