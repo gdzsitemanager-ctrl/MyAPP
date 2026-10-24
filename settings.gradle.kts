@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "WebApkBuilder"
-include(":app", ":template", ":gameapp", ":messengerapp")
+include(":app", ":template")
